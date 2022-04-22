@@ -59,6 +59,14 @@ const (
 	ClientSourceHostsFile
 )
 
+type clientSourcesConf struct {
+	WHOIS     bool `yaml:"whois"`
+	ARP       bool `yaml:"arp"`
+	RDNS      bool `yaml:"rdns"`
+	DHCP      bool `yaml:"dhcp"`
+	HostsFile bool `yaml:"hosts"`
+}
+
 // RuntimeClient information
 type RuntimeClient struct {
 	WHOISInfo *RuntimeClientWHOISInfo
@@ -134,14 +142,14 @@ func (clients *clientsContainer) Init(
 		clients.dhcpServer.SetOnLeaseChanged(clients.onDHCPLeaseChanged)
 	}
 
-	go clients.handleHostsUpdates()
+	if clients.etcHosts != nil {
+		go clients.handleHostsUpdates()
+	}
 }
 
 func (clients *clientsContainer) handleHostsUpdates() {
-	if clients.etcHosts != nil {
-		for upd := range clients.etcHosts.Upd() {
-			clients.addFromHostsFile(upd)
-		}
+	for upd := range clients.etcHosts.Upd() {
+		clients.addFromHostsFile(upd)
 	}
 }
 
@@ -152,7 +160,9 @@ func (clients *clientsContainer) Start() {
 			webHandlersRegistered = true
 			clients.registerWebHandlers()
 		}
-		go clients.periodicUpdate()
+		if clients.arpdb != nil {
+			go clients.periodicUpdate()
+		}
 	}
 }
 
@@ -843,7 +853,7 @@ func (clients *clientsContainer) addFromSystemARP() {
 // updateFromDHCP adds the clients that have a non-empty hostname from the DHCP
 // server.
 func (clients *clientsContainer) updateFromDHCP(add bool) {
-	if clients.dhcpServer == nil {
+	if clients.dhcpServer == nil || !config.Clients.Srcs.DHCP {
 		return
 	}
 

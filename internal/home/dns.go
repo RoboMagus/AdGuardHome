@@ -136,7 +136,10 @@ func initDNSServer() (err error) {
 	}
 
 	Context.rdns = NewRDNS(Context.dnsServer, &Context.clients, config.DNS.UsePrivateRDNS)
-	Context.whois = initWHOIS(&Context.clients)
+
+	if !config.Clients.Srcs.WHOIS {
+		Context.whois = initWHOIS(&Context.clients)
+	}
 
 	Context.filters.Init()
 	return nil
@@ -153,10 +156,11 @@ func onDNSRequest(pctx *proxy.DNSContext) {
 		return
 	}
 
-	if config.DNS.ResolveClients && !ip.IsLoopback() {
+	srcs := config.Clients.Srcs
+	if srcs.RDNS && !ip.IsLoopback() {
 		Context.rdns.Begin(ip)
 	}
-	if !netutil.IsSpecialPurpose(ip) {
+	if srcs.WHOIS && !netutil.IsSpecialPurpose(ip) {
 		Context.whois.Begin(ip)
 	}
 }
@@ -239,7 +243,7 @@ func generateServerConfig() (newConf dnsforward.ServerConfig, err error) {
 	newConf.FilterHandler = applyAdditionalFiltering
 	newConf.GetCustomUpstreamByClient = Context.clients.findUpstreams
 
-	newConf.ResolveClients = dnsConf.ResolveClients
+	newConf.ResolveClients = config.Clients.Srcs.RDNS
 	newConf.UsePrivateRDNS = dnsConf.UsePrivateRDNS
 	newConf.LocalPTRResolvers = dnsConf.LocalPTRResolvers
 	newConf.UpstreamTimeout = dnsConf.UpstreamTimeout.Duration
@@ -387,10 +391,11 @@ func startDNSServer() error {
 			continue
 		}
 
-		if config.DNS.ResolveClients && !ip.IsLoopback() {
+		srcs := config.Clients.Srcs
+		if srcs.RDNS && !ip.IsLoopback() {
 			Context.rdns.Begin(ip)
 		}
-		if !netutil.IsSpecialPurpose(ip) {
+		if srcs.WHOIS && !netutil.IsSpecialPurpose(ip) {
 			Context.whois.Begin(ip)
 		}
 	}
