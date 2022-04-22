@@ -57,8 +57,8 @@ func (sp *signalProcessor) shutdown() {
 	os.Exit(status)
 }
 
-// newSignalProcessor initializes a new instance of signalProcessor
-// and relayed signals to him.
+// newSignalProcessor initializes a new instance of signalProcessor and relays
+// signals to him.
 func newSignalProcessor(svcs ...agh.Service) (sp signalProcessor) {
 	sp = signalProcessor{
 		signal:   make(chan os.Signal, 1),
